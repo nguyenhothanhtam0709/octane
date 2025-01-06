@@ -9,6 +9,7 @@ use Laravel\Octane\Swoole\ServerStateFile;
 use Laravel\Octane\Swoole\SwooleExtension;
 use Laravel\Octane\Swoole\WorkerState;
 use Swoole\Http\Server;
+use Swoole\Server\Task;
 use Swoole\Timer;
 
 ini_set('display_errors', 'stderr');
@@ -142,11 +143,31 @@ $server->on('request', function ($request, $response) use ($server, $workerState
 |
 */
 
-$server->on('task', fn (Server $server, int $taskId, int $fromWorkerId, $data) =>
+/**
+ * **NOTE:** SWOOLE_THREAD mode in Swoole 6.0.0 has a bug that makes
+ * `$server->setting` of workers and task workers being *NULL*.
+ * This bug is already fixed, see this [issue](https://github.com/swoole/swoole-src/issues/5651).
+ */
+if ($server->setting['task_enable_coroutine'] || $server->setting['task_use_object']) {
+    $server->on(
+        'task',
+        function (Server $server, Task $task) use ($workerState) {
+            $data = $task->data;
+            return $data === 'octane-tick'
+                ? $workerState->worker->handleTick()
+                : $task->finish($workerState->worker->handleTask($data));
+        }
+    );
+} else {
+    $server->on(
+        'task',
+        fn(Server $server, int $taskId, int $fromWorkerId, $data) =>
     $data === 'octane-tick'
             ? $workerState->worker->handleTick()
             : $workerState->worker->handleTask($data)
 );
+}
+
 
 $server->on('finish', fn (Server $server, int $taskId, $result) => $result);
 
