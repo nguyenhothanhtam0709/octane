@@ -148,7 +148,7 @@ $server->on('request', function ($request, $response) use ($server, $workerState
  * `$server->setting` of workers and task workers being *NULL*.
  * This bug is already fixed, see this [issue](https://github.com/swoole/swoole-src/issues/5651).
  */
-if ($server->setting['task_enable_coroutine'] || $server->setting['task_use_object']) {
+if ($server->setting['task_enable_coroutine'] || $server->setting['task_use_object'] || is_null($server->setting)) {
     $server->on(
         'task',
         function (Server $server, Task $task) use ($workerState) {
