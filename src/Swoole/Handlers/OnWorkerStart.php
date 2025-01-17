@@ -41,7 +41,13 @@ class OnWorkerStart
         $this->streamRequestsToConsole($server);
 
         if ($this->shouldSetProcessName) {
-            $isTaskWorker = $workerId >= $server->setting['worker_num'];
+            /**
+             * **NOTE:** SWOOLE_THREAD mode in Swoole 6.0.0 has a bug that makes
+             * `$server->setting` of workers and task workers being *NULL*.
+             * This bug is already fixed, see this [issue](https://github.com/swoole/swoole-src/issues/5651).
+             */
+            $worker_num = is_null($server->setting) ? 4 : $server->setting['worker_num'];
+            $isTaskWorker = $workerId >= $worker_num;
 
             $this->extension->setProcessName(
                 $this->serverState['appName'],
